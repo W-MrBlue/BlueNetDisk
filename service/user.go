@@ -60,7 +60,18 @@ func (*UserSrv) UserLogin(c context.Context, req *types.UserLoginReq) (resp inte
 		return nil, err
 	}
 
-	//todo :jwt delivery
+	token, err := utils.GenerateToken(user.Id, user.Username)
+	if err != nil {
+		utils.Logrusobj.Error(err)
+		return nil, err
+	}
+	userResp := types.TokenData{
+		UserInfo: types.UserInfoResp{
+			Id:       user.Id,
+			Username: user.Username,
+		},
+		AccessToken: token,
+	}
 
-	return ctl.RespSuccess(), nil
+	return ctl.RespSuccessWithData(userResp), nil
 }
