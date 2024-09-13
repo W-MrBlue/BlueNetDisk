@@ -1,0 +1,23 @@
+system:
+  domain: demo
+  version: 1.0
+  appEnv: "test"
+  HttpPort: ":8080"
+  Host: "localhost"
+
+mysql:
+  default:
+    dialect: "mysql"
+    dbHost: "127.0.0.1"
+    dbPort: "3306"
+    dbName: "BlueNetDisk"
+    userName: "root"
+    password: "123456"
+    charset: "utf8mb4"
+
+redis:
+  redisDbName: 1
+  redisHost: 127.0.0.1
+  redisPort: 6379
+  redisPassword: 123456
+  redisNetwork: tcp
