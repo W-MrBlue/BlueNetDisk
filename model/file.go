@@ -6,15 +6,17 @@ import (
 
 type FileModel struct {
 	Id        int64      `gorm:"column:id;primary_key;AUTO_INCREMENT"`
-	Uid       int64      `gorm:"column:uid"`
+	UUID      string     `gorm:"column:uuid;size:36;unique"`
 	CreatedAt *time.Time `gorm:"column:created_at"`
 	UpdatedAt *time.Time `gorm:"column:updated_at"`
 	DeletedAt *time.Time `gorm:"column:deleted_at"`
-	Sha1      string     `gorm:"column:sha1;unique"`
+	Sha1      string     `gorm:"column:sha1"`
 	Filename  string     `gorm:"column:filename"`
 	Filesize  int64      `gorm:"column:file_size"`
 	Fileaddr  string     `gorm:"column:file_addr"`
-	status    int        `gorm:"column:status"`
+	Status    int        `gorm:"column:status"`
+	Ext       string     `gorm:"column:ext"`
+	Ref       int        `gorm:"column:ref"`
 }
 
 func (*FileModel) TableName() string {

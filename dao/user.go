@@ -16,6 +16,7 @@ func NewUserDao(c context.Context) *UserDao {
 	}
 	return &UserDao{NewDbClient(c)}
 }
+
 func (u *UserDao) CreateUser(user *model.UserModel) error {
 	return u.db.Create(user).Error
 }

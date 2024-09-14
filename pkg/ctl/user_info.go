@@ -1,11 +1,12 @@
 package ctl
 
 import (
+	"BlueNetDisk/consts"
 	"context"
 	"errors"
 )
 
-var userKey = "userKey"
+var userKey = consts.UserKey
 
 type UserInfo struct {
 	Id       int64  `json:"id"`

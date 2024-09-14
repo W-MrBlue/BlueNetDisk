@@ -1,7 +1,8 @@
 package service
 
 import (
-	"BlueNetDisk/db/dao"
+	"BlueNetDisk/consts"
+	"BlueNetDisk/dao"
 	"BlueNetDisk/model"
 	"BlueNetDisk/pkg/ctl"
 	"BlueNetDisk/pkg/utils"
@@ -40,7 +41,24 @@ func (*UserSrv) UserRegister(c context.Context, req *types.UserRegisterReq) (res
 			utils.Logrusobj.Error(err)
 			return nil, err
 		}
-		return ctl.RespSuccess(), nil
+
+		//为用户建立root文件夹
+		//此处需要查询用户信息写入db后自动产生的id，以保存到context中进行跟踪
+		user, err = u.FindUserByName(user.Username)
+		if err != nil {
+			utils.Logrusobj.Error(err)
+			return nil, err
+		}
+		f := GetFileSrv()
+		c = context.WithValue(c, consts.UserKey, &ctl.UserInfo{Id: user.Id, Username: user.Username})
+		fUUID, err := f.CreateDir(c, user.Username, "0")
+		if err != nil {
+			utils.Logrusobj.Error(err)
+			return nil, err
+		}
+		user.SetRootDir(fUUID)
+
+		return ctl.RespSuccessWithData(fUUID), nil
 	}
 	err = errors.New("user already exists")
 	utils.Logrusobj.Error(err)

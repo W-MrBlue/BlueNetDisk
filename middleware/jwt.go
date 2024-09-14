@@ -31,7 +31,8 @@ func JWT() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		c.Request = c.Request.WithContext(ctl.NewContext(c.Request.Context(), &ctl.UserInfo{Id: claims.Id, Username: claims.Username}))
+		c.Request = c.Request.WithContext(ctl.NewContext(c.Request.Context(),
+			&ctl.UserInfo{Id: claims.Id, Username: claims.Username}))
 		c.Next()
 	}
 }

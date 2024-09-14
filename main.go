@@ -2,7 +2,7 @@ package main
 
 import (
 	"BlueNetDisk/config"
-	"BlueNetDisk/db/dao"
+	"BlueNetDisk/dao"
 	"BlueNetDisk/pkg/utils"
 	"BlueNetDisk/router"
 )
