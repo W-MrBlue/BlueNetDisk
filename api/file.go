@@ -36,7 +36,6 @@ func ListFileHandler() gin.HandlerFunc {
 			utils.Logrusobj.Error(err)
 			c.JSON(http.StatusBadRequest, ErrorResponse(err))
 		}
-		fmt.Println("received ListFileReq : ", ListFileReq)
 		l := service.GetFileSrv()
 		resp, err := l.ListFileByParentUUID(c.Request.Context(), ListFileReq.ParentId)
 		if err != nil {
