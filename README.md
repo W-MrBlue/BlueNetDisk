@@ -1,0 +1,1 @@
+使用前请将consts/file.go中的FilePoolPath改为本地可用文件夹路径；并在config/local/config.yaml中配置数据库连接信息
