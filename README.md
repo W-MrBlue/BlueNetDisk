@@ -1,0 +1,1 @@
+使用前请在config/local/config.yaml中配置数据库连接信息
