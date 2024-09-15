@@ -27,3 +27,19 @@ type MkdirReq struct {
 	DirName  string `json:"dirname"`
 	ParentId string `json:"parent_id"`
 }
+
+type DeleteFileReq struct {
+	FileName string `json:"filename"`
+	ParentId string `json:"parent_id"`
+}
+
+type RenameFileReq struct {
+	NewFileName string `json:"new_filename"`
+	FileId      string `json:"file_id"`
+	ParentId    string `json:"parent_id"`
+}
+
+type DownloadFileReq struct {
+	FileName string `json:"filename"`
+	ParentId string `json:"parent_id"`
+}

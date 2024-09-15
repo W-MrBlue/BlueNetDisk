@@ -56,7 +56,14 @@ func (*UserSrv) UserRegister(c context.Context, req *types.UserRegisterReq) (res
 			utils.Logrusobj.Error(err)
 			return nil, err
 		}
-		user.SetRootDir(fUUID)
+
+		if fUUID, ok := fUUID.(string); ok {
+			user.SetRootDir(fUUID)
+		} else {
+			err = errors.New("wrong return type")
+			utils.Logrusobj.Error(err)
+			return nil, err
+		}
 
 		return ctl.RespSuccessWithData(fUUID), nil
 	}
@@ -83,6 +90,7 @@ func (*UserSrv) UserLogin(c context.Context, req *types.UserLoginReq) (resp inte
 		utils.Logrusobj.Error(err)
 		return nil, err
 	}
+
 	userResp := types.TokenData{
 		UserInfo: types.UserInfoResp{
 			Id:       user.Id,

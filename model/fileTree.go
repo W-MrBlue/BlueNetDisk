@@ -1,6 +1,11 @@
 package model
 
-import "time"
+import (
+	"BlueNetDisk/consts"
+	"mime/multipart"
+	"path"
+	"time"
+)
 
 type FileTreeModel struct {
 	Id         int64      `gorm:"primary_key;AUTO_INCREMENT"`
@@ -18,4 +23,16 @@ type FileTreeModel struct {
 
 func (*FileTreeModel) TableName() string {
 	return "file_tree"
+}
+
+func NewFileNode(fileHeader *multipart.FileHeader, uid int64, parentId, fUUID string) *FileTreeModel {
+	return &FileTreeModel{
+		UUID:       fUUID,
+		Uid:        uid,
+		ParentUUID: parentId,
+		FileName:   fileHeader.Filename,
+		Filesize:   fileHeader.Size,
+		Status:     consts.Available,
+		Ext:        path.Ext(fileHeader.Filename),
+	}
 }

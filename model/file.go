@@ -1,6 +1,9 @@
 package model
 
 import (
+	"BlueNetDisk/consts"
+	"mime/multipart"
+	"path"
 	"time"
 )
 
@@ -21,4 +24,17 @@ type FileModel struct {
 
 func (*FileModel) TableName() string {
 	return "file"
+}
+
+func NewFile(fileHeader *multipart.FileHeader, fUUID string, shaStr string) *FileModel {
+	return &FileModel{
+		UUID:     fUUID,
+		Sha1:     shaStr,
+		Filename: fileHeader.Filename,
+		Filesize: fileHeader.Size,
+		Fileaddr: consts.FilePoolPath,
+		Status:   consts.Available,
+		Ext:      path.Ext(fileHeader.Filename),
+		Ref:      1,
+	}
 }

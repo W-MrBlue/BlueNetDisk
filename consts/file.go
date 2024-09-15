@@ -6,7 +6,7 @@ const (
 )
 
 const (
-	FilePoolPath = "C:\\Users\\MrBlue\\GolandProjects\\BlueNetDisk\\filePool"
+	FilePoolPath = "C:/Users/MrBlue/GolandProjects/BlueNetDisk/filePool"
 	DirSize      = 0
 )
 

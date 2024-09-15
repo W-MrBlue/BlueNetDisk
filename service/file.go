@@ -8,10 +8,9 @@ import (
 	"BlueNetDisk/types"
 	"context"
 	"errors"
-	"fmt"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"mime/multipart"
+	"path"
 	"sync"
 )
 
@@ -41,7 +40,7 @@ func (f *FileSrv) UploadManyFiles(c context.Context, form *multipart.Form) (resp
 	parentId := form.Value["parentDir"][0]
 	respList := make([]*types.UploadFileResp, 0)
 	for _, fileHeader := range fileHeaders {
-		fUUID, err := f.UploadFile(c, fileHeader, parentId)
+		fUUID, err := f.uploadFile(c, fileHeader, parentId)
 		if err != nil {
 			respList = append(respList, &types.UploadFileResp{
 				FileName: fileHeader.Filename,
@@ -60,11 +59,13 @@ func (f *FileSrv) UploadManyFiles(c context.Context, form *multipart.Form) (resp
 	return ctl.RespList(respList, total), nil
 }
 
-// UploadFile uploads file to the given path,return err if any error occurs
-func (*FileSrv) UploadFile(c context.Context, fileHeader *multipart.FileHeader, parentId string) (UUID string, err error) {
+// uploadFile uploads file to the given path,return err if any error occurs
+// todo 数据库与存储写操作统一在DAO层进行，应该分离为DAO层和UTIL层，二者在SERVICE层合并而非在Dao层合并
+func (*FileSrv) uploadFile(c context.Context, fileHeader *multipart.FileHeader, parentId string) (UUID string, err error) {
 
 	u, err := ctl.GetUserInfo(c)
 	if err != nil {
+		utils.Logrusobj.Error(err)
 		return "", err
 	}
 
@@ -91,10 +92,11 @@ func (*FileSrv) UploadFile(c context.Context, fileHeader *multipart.FileHeader, 
 		utils.Logrusobj.Error(err)
 		return "", err
 	}
+	//创建软连接并更新用户文件表
 	fileInfo, err := f.FindFileBySha1(shaStr)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		_ = f.UpdateFileRef(fileInfo.UUID)
-		_, err = f.CreateFile(fileHeader, u.Id, parentId, shaStr, true)
+		_ = f.IncreaseFileRef(fileInfo.UUID)
+		_, err = f.CreateFile(fileHeader, u.Id, parentId, shaStr, true, fileInfo.UUID)
 		if err != nil {
 			utils.Logrusobj.Error(err)
 			return "", err
@@ -102,27 +104,27 @@ func (*FileSrv) UploadFile(c context.Context, fileHeader *multipart.FileHeader, 
 		return fileInfo.UUID, nil
 	}
 
-	fUUID, err := f.CreateFile(fileHeader, u.Id, parentId, shaStr, false)
+	//写入文件池并更新用户文件表
+	fUUID, err := f.CreateFile(fileHeader, u.Id, parentId, shaStr, false, "")
 	if err != nil {
 		utils.Logrusobj.Error(err)
 		return "", err
 	}
+
 	return fUUID, err
 }
 
 // CreateDir 将在用户文件表和文件池下建立文件夹类型文件，但文件夹不会被实际写入文件池
-func (*FileSrv) CreateDir(c context.Context, dirname string, parentId string) (UUID string, err error) {
+func (*FileSrv) CreateDir(c context.Context, dirname string, parentId string) (resp interface{}, err error) {
 	u, err := ctl.GetUserInfo(c)
-	f := dao.NewFileDao(c)
-	fUUID := uuid.New().String()
 	if err != nil {
-		return
+		return "", err
 	}
+	f := dao.NewFileDao(c)
 	//查找同级同名文件
 	_, err = f.FindFileByNameAndParent(u.Id, dirname, parentId)
-	fmt.Println(err.Error())
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		err := errors.New("dir already exists")
+		err = errors.New("dir already exists")
 		utils.Logrusobj.Error(err)
 		return "", err
 	}
@@ -131,12 +133,33 @@ func (*FileSrv) CreateDir(c context.Context, dirname string, parentId string) (U
 		Filename: dirname + ".dir",
 		Size:     consts.DirSize,
 	}
-	_, err = f.CreateFile(&fakeFileHeader, u.Id, parentId, "", false)
+	fUUID, err := f.CreateFile(&fakeFileHeader, u.Id, parentId, "", false, "")
 	if err != nil {
 		utils.Logrusobj.Error(err)
 		return "", err
 	}
-	return fUUID, err
+	//如果是创建用户根目录,为service调用,返回fUUID
+	//如果是创建其他目录，为api调用，返回resp
+	if parentId == "0" {
+		return fUUID, err
+	} else {
+		return ctl.RespSuccessWithData(fUUID), nil
+	}
+}
+
+func (*FileSrv) GetRoot(c context.Context) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(c)
+	if err != nil {
+		utils.Logrusobj.Error(err)
+		return nil, err
+	}
+	f := dao.NewFileDao(c)
+	root, err := f.GetRoot(u.Id)
+	if err != nil {
+		utils.Logrusobj.Error(err)
+		return nil, err
+	}
+	return ctl.RespSuccessWithData(root), nil
 }
 
 func (*FileSrv) ListFileByParentUUID(c context.Context, parentId string) (resp interface{}, err error) {
@@ -145,7 +168,6 @@ func (*FileSrv) ListFileByParentUUID(c context.Context, parentId string) (resp i
 		utils.Logrusobj.Error(err)
 		return nil, err
 	}
-	fmt.Println("Going to select where uid = ", u.Id, "AND parentId = ", parentId)
 	files, total, err := dao.NewFileDao(c).ListFileByParent(u.Id, parentId)
 	if err != nil {
 		utils.Logrusobj.Error(err)
@@ -163,4 +185,63 @@ func (*FileSrv) ListFileByParentUUID(c context.Context, parentId string) (resp i
 		})
 	}
 	return ctl.RespList(fRespList, total), nil
+}
+
+func (*FileSrv) DeleteFile(c context.Context, filename string, parentId string) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(c)
+	if err != nil {
+		utils.Logrusobj.Error(err)
+		return nil, err
+	}
+	f := dao.NewFileDao(c)
+	file, err := f.FindFileByNameAndParent(u.Id, filename, parentId)
+	if err != nil {
+		err = errors.New("failed to get the file,it may not exit")
+		utils.Logrusobj.Error(err)
+		return nil, err
+	}
+	err = f.DeleteFileTreeNodeWithTransaction(u.Id, file.UUID)
+	if err != nil {
+		utils.Logrusobj.Error(err)
+		return nil, err
+	}
+	return ctl.RespSuccess(), nil
+}
+
+func (*FileSrv) RenameFile(c context.Context, newFilename string, fileId, parentId string) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(c)
+	if err != nil {
+		return "", err
+	}
+	f := dao.NewFileDao(c)
+	//查找同级同名文件
+	_, err = f.FindFileByNameAndParent(u.Id, newFilename, parentId)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		err = errors.New("name already exists")
+		utils.Logrusobj.Error(err)
+		return "", err
+	}
+
+	err = f.RenameById(u.Id, fileId, parentId, newFilename)
+	if err != nil {
+		utils.Logrusobj.Error(err)
+		return "", err
+	}
+	return ctl.RespSuccess(), nil
+}
+
+func (*FileSrv) DownloadFile(c context.Context, filename string, parentId string) (downloadPath string, err error) {
+	u, err := ctl.GetUserInfo(c)
+	if err != nil {
+		utils.Logrusobj.Error(err)
+		return "", err
+	}
+	f := dao.NewFileDao(c)
+	file, err := f.FindFileByNameAndParent(u.Id, filename, parentId)
+	if err != nil {
+		utils.Logrusobj.Error(err)
+		return "", err
+	}
+	downloadPath = path.Join(consts.FilePoolPath, file.UUID+file.Ext)
+	return downloadPath, nil
 }

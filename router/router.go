@@ -28,7 +28,11 @@ func NewRouter() *gin.Engine {
 			})
 			authed.POST("file/upload", api.UploadFileHandler())
 			authed.GET("file/list", api.ListFileHandler())
+			authed.GET("file/root", api.GetFileRootHandler())
 			authed.POST("file/mkdir", api.MkdirHandler())
+			authed.PUT("file/rename", api.RenameFileHandler())
+			authed.DELETE("file/delete", api.DeleteFileHandler())
+			authed.GET("file/download", api.DownloadFileHandler())
 		}
 	}
 	return ginRouter

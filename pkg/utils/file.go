@@ -1,35 +1,47 @@
 package utils
 
 import (
+	"BlueNetDisk/consts"
 	"crypto/sha1"
 	"encoding/hex"
 	"io"
 	"mime/multipart"
 	"os"
 	"path"
+	"path/filepath"
 )
 
-// Writer used when writing file to a local after the file's information is already written in to Database.
-// db(*gorm.DB) is passed as params to rollback db operations
-func Writer(file *multipart.FileHeader, dst string, uuid string) error {
+// WriteFile used when writing file to a local after the file's information is already written in to Database.
+func WriteFile(file *multipart.FileHeader, dst string, uuid string) error {
+	// 打开源文件
 	src, err := file.Open()
 	if err != nil {
 		return err
 	}
 	defer src.Close()
 
-	out, err := os.Create(dst + "\\" + uuid + path.Ext(file.Filename))
+	// 使用 filepath.Join 处理路径，保证跨平台兼容性
+	outputPath := filepath.Join(dst, uuid+path.Ext(file.Filename))
+
+	// 创建目标文件
+	out, err := os.Create(outputPath)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
 
+	// 复制文件内容
 	_, err = io.Copy(out, src)
 	if err != nil {
-		_ = os.Remove(dst)
+		// 如果复制失败，删除目标文件
+		_ = os.Remove(outputPath)
 		return err
 	}
 	return nil
+}
+
+func RemoveFile(filename string) error {
+	return os.Remove(path.Join(consts.FilePoolPath, filename))
 }
 
 func Sha1(file *multipart.FileHeader) string {
