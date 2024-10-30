@@ -51,7 +51,10 @@ func Sha1(file *multipart.FileHeader) string {
 		return ""
 	}
 	defer fd.Close()
-	data := make([]byte, 0)
-	_, err = fd.Read(data)
-	return hex.EncodeToString(hash.Sum(data))
+	_, err = io.Copy(hash, fd)
+	if err != nil {
+		return ""
+	}
+	v := hex.EncodeToString(hash.Sum(nil))
+	return v
 }

@@ -23,10 +23,10 @@ func NewFileDao(c context.Context) *FileDao {
 
 // CreateFile 将传入文件头解析成文件，写信息到文件池表，用户文件树表.
 // 如果flag为True则正在创建软连接，只写用户文件树表，需要传入链接目标的UUID
-func (f *FileDao) CreateFile(fileHeader *multipart.FileHeader, uid int64, parentId string, shaStr string, OnlyUpDateFileTree bool, linkUUID string) (UUID string, err error) {
+func (f *FileDao) CreateFile(fileHeader *multipart.FileHeader, uid int64, parentDir *model.FileTreeModel, shaStr string, OnlyUpDateFileTree bool, linkUUID string) (UUID string, err error) {
 	fUUID := uuid.New().String()
 	fileInfo := model.NewFile(fileHeader, fUUID, shaStr)
-	nodeInfo := model.NewFileNode(fileHeader, uid, parentId, fUUID)
+	nodeInfo := model.NewFileNode(fileHeader, uid, parentDir, fUUID)
 	//原子事务操作
 	//写入文件信息到文件池表
 	// 开启事务

@@ -14,9 +14,7 @@ type FileModel struct {
 	UpdatedAt *time.Time `gorm:"column:updated_at"`
 	DeletedAt *time.Time `gorm:"column:deleted_at"`
 	Sha1      string     `gorm:"column:sha1"`
-	Filename  string     `gorm:"column:filename"`
-	Filesize  int64      `gorm:"column:file_size"`
-	Fileaddr  string     `gorm:"column:file_addr"`
+	FileSize  int64      `gorm:"column:file_size"`
 	Status    int        `gorm:"column:status"`
 	Ext       string     `gorm:"column:ext"`
 	Ref       int        `gorm:"column:ref"`
@@ -30,9 +28,7 @@ func NewFile(fileHeader *multipart.FileHeader, fUUID string, shaStr string) *Fil
 	return &FileModel{
 		UUID:     fUUID,
 		Sha1:     shaStr,
-		Filename: fileHeader.Filename,
-		Filesize: fileHeader.Size,
-		Fileaddr: consts.FilePoolPath,
+		FileSize: fileHeader.Size,
 		Status:   consts.Available,
 		Ext:      path.Ext(fileHeader.Filename),
 		Ref:      1,

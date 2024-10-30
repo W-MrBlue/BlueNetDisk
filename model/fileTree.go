@@ -4,6 +4,7 @@ import (
 	"BlueNetDisk/consts"
 	"mime/multipart"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -13,6 +14,7 @@ type FileTreeModel struct {
 	UUID       string     `gorm:"column:uuid"`
 	FileName   string     `gorm:"column:file_name"`
 	Filesize   int64      `gorm:"column:file_size"`
+	FileAddr   string     `gorm:"column:file_addr"`
 	ParentUUID string     `gorm:"column:parent_uuid"`
 	CreatedAt  *time.Time `gorm:"column:created_at"`
 	UpdatedAt  *time.Time `gorm:"column:updated_at"`
@@ -25,13 +27,14 @@ func (*FileTreeModel) TableName() string {
 	return "file_tree"
 }
 
-func NewFileNode(fileHeader *multipart.FileHeader, uid int64, parentId, fUUID string) *FileTreeModel {
+func NewFileNode(fileHeader *multipart.FileHeader, uid int64, parentDir *FileTreeModel, fUUID string) *FileTreeModel {
 	return &FileTreeModel{
 		UUID:       fUUID,
 		Uid:        uid,
-		ParentUUID: parentId,
+		ParentUUID: parentDir.UUID,
 		FileName:   fileHeader.Filename,
 		Filesize:   fileHeader.Size,
+		FileAddr:   path.Join(parentDir.FileAddr, strings.TrimSuffix(parentDir.FileName, ".dir")),
 		Status:     consts.Available,
 		Ext:        path.Ext(fileHeader.Filename),
 	}

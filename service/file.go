@@ -3,6 +3,7 @@ package service
 import (
 	"BlueNetDisk/consts"
 	"BlueNetDisk/dao"
+	"BlueNetDisk/model"
 	"BlueNetDisk/pkg/ctl"
 	"BlueNetDisk/pkg/utils"
 	"BlueNetDisk/types"
@@ -72,12 +73,13 @@ func (*FileSrv) uploadFile(c context.Context, fileHeader *multipart.FileHeader, 
 	//同步文件信息到数据库
 	f := dao.NewFileDao(c)
 	//查询目标目录是否存在于用户文件表中
-	_, err = f.FindFileByUuid(u.Id, parentId)
+	parentDir, err := f.FindFileByUuid(u.Id, parentId)
 	if err != nil {
 		err = errors.New("failed to get the parent directory,it may not exit")
 		return "", err
 	}
 	//查询同级目录下是否存在同名文件
+
 	_, err = f.FindFileByNameAndParent(u.Id, fileHeader.Filename, parentId)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		err := errors.New("file already exists")
@@ -96,7 +98,7 @@ func (*FileSrv) uploadFile(c context.Context, fileHeader *multipart.FileHeader, 
 	fileInfo, err := f.FindFileBySha1(shaStr)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		_ = f.IncreaseFileRef(fileInfo.UUID)
-		_, err = f.CreateFile(fileHeader, u.Id, parentId, shaStr, true, fileInfo.UUID)
+		_, err = f.CreateFile(fileHeader, u.Id, parentDir, shaStr, true, fileInfo.UUID)
 		if err != nil {
 			utils.Logrusobj.Error(err)
 			return "", err
@@ -105,7 +107,7 @@ func (*FileSrv) uploadFile(c context.Context, fileHeader *multipart.FileHeader, 
 	}
 
 	//写入文件池并更新用户文件表
-	fUUID, err := f.CreateFile(fileHeader, u.Id, parentId, shaStr, false, "")
+	fUUID, err := f.CreateFile(fileHeader, u.Id, parentDir, shaStr, false, "")
 	if err != nil {
 		utils.Logrusobj.Error(err)
 		return "", err
@@ -115,14 +117,31 @@ func (*FileSrv) uploadFile(c context.Context, fileHeader *multipart.FileHeader, 
 }
 
 // CreateDir 将在用户文件表和文件池下建立文件夹类型文件，但文件夹不会被实际写入文件池
-func (*FileSrv) CreateDir(c context.Context, dirname string, parentId string) (resp interface{}, err error) {
+func (*FileSrv) CreateDir(c context.Context, dirname string, parentUUID string) (resp interface{}, err error) {
 	u, err := ctl.GetUserInfo(c)
 	if err != nil {
 		return "", err
 	}
 	f := dao.NewFileDao(c)
+	parentDir := &model.FileTreeModel{}
+	//查询目标目录是否存在于用户文件表中
+	if parentUUID == "0" {
+		//创建假根文件
+		parentDir = &model.FileTreeModel{
+			FileName: "",
+			FileAddr: "",
+		}
+	} else {
+		parentDir, err = f.FindFileByUuid(u.Id, parentUUID)
+		if err != nil {
+			err = errors.New("failed to get the parent directory,it may not exit")
+			return "", err
+		}
+	}
+
 	//查找同级同名文件
-	_, err = f.FindFileByNameAndParent(u.Id, dirname, parentId)
+	_, err = f.FindFileByNameAndParent(u.Id, dirname+".dir", parentUUID)
+	//fmt.Println(err.Error())
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		err = errors.New("dir already exists")
 		utils.Logrusobj.Error(err)
@@ -133,14 +152,14 @@ func (*FileSrv) CreateDir(c context.Context, dirname string, parentId string) (r
 		Filename: dirname + ".dir",
 		Size:     consts.DirSize,
 	}
-	fUUID, err := f.CreateFile(&fakeFileHeader, u.Id, parentId, "", false, "")
+	fUUID, err := f.CreateFile(&fakeFileHeader, u.Id, parentDir, "", false, "")
 	if err != nil {
 		utils.Logrusobj.Error(err)
 		return "", err
 	}
 	//如果是创建用户根目录,为service调用,返回fUUID
 	//如果是创建其他目录，为api调用，返回resp
-	if parentId == "0" {
+	if parentUUID == "0" {
 		return fUUID, err
 	} else {
 		return ctl.RespSuccessWithData(fUUID), nil
@@ -168,7 +187,15 @@ func (*FileSrv) ListFileByParentUUID(c context.Context, parentId string) (resp i
 		utils.Logrusobj.Error(err)
 		return nil, err
 	}
-	files, total, err := dao.NewFileDao(c).ListFileByParent(u.Id, parentId)
+	f := dao.NewFileDao(c)
+
+	_, err = f.FindFileByUuid(u.Id, parentId)
+	if err != nil {
+		err = errors.New("failed to get the directory,it may not exit")
+		return "", err
+	}
+
+	files, total, err := f.ListFileByParent(u.Id, parentId)
 	if err != nil {
 		utils.Logrusobj.Error(err)
 		return nil, err
